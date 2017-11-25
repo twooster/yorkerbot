@@ -8,7 +8,16 @@ ARG uid=1000
 RUN mkdir -p /app/src \
  && chown -R ${uid}:${uid} /app
 
-USER ${uid}:${uid}
+COPY . /app/src
 WORKDIR /app/src
+
+RUN chown -R ${uid} /app/src
+
+ARG env=dev
+RUN if [ ${env} = production ] ; then \
+      npm install ; \
+    fi
+
+USER ${uid}:${uid}
 
 ENTRYPOINT ["/app/src/docker-entrypoint.sh"]

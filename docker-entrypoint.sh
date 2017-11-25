@@ -8,6 +8,8 @@ develop)
   npm install
   exec npm run develop
   ;;
+run)
+  exec npm run start
 *)
   exec "$@"
   ;;
