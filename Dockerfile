@@ -21,3 +21,4 @@ RUN if [ ${env} = production ] ; then \
 USER ${uid}:${uid}
 
 ENTRYPOINT ["/app/src/docker-entrypoint.sh"]
+CMD ["run"]
