@@ -13,8 +13,7 @@ const twitClient = new Twit({
   access_token_secret: process.env.TWITTER_ACCESS_TOKEN_SECRET,
 });
 
-//const TWIDIOT_IN_CHIEF = "17177495";
-const TWIDIOT_IN_CHIEF = 25073877;
+const TWIDIOT_IN_CHIEF = "25073877";
 const NEW_YORKER_ENDPOINT = "https://www.newyorker.com/cartoons/random/randomAPI1";
 const LEFT_QUOTE = "\u201C";
 const RIGHT_QUOTE = "\u201D";
@@ -78,22 +77,14 @@ function fetchRandomComicImage() {
     })
     .catch((err) => {
       if (err instanceof TryAgain) {
-        log(err);
+        log("Will retry:", err.message);
         return fetchRandomComicImage();
       }
       throw err;
     });
 }
 
-function calcTextWidthHeight(image, text) {
-  // gd.Image#stringFTBBox(color, font, size, angle, x, y, string)
-  const bbox = image.stringFTBBox(textColor, fontPath, fontSize, 0, 0, 0, text);
-  //    0    1    2,   3    4    5    6    7
-  // [xll, yll, xlr, ylr, xur, yur, xul, yul]
-  return [bbox[2] - bbox[0], bbox[3] - bbox[5]];
-}
-
-function createBalancedLines(words, linesNeeded, avgLineWidth, maxTextWidth) {
+function createBalancedLines(words, spaceWidth, linesNeeded, avgLineWidth, maxTextWidth) {
   let lines = [];
 
   let lineWords = [];
@@ -155,7 +146,7 @@ function createBalancedLines(words, linesNeeded, avgLineWidth, maxTextWidth) {
  * 5. Ignore "cumulative average line width" for last line.
  */
 
-function calcAvgLineWidth(words, maxTextWidth) {
+function calcAvgLineWidth(words, spaceWidth, maxTextWidth) {
   let curLineWidth = 0;
   let cumTextWidth = 0;
   let linesNeeded = 1;
@@ -186,7 +177,6 @@ function calcAvgLineWidth(words, maxTextWidth) {
 function captionImage(image, caption) {
   const fontSize = 14;
   const fontPath = CASLON_TTF;
-  const textColor = image.colorAllocate(0, 0, 0);
   const lineSpacing = 2; // (fontSize * 0.25)|0;
   const minLineHeight = (fontSize * 1.4)|0;
 
@@ -207,6 +197,14 @@ function captionImage(image, caption) {
 
   const maxTextWidth = imageWidth - (captionMarginHoriz * 2);
 
+  const textColor = image.colorAllocate(0, 0, 0);
+  function calcTextWidthHeight(image, text) {
+    // gd.Image#stringFTBBox(color, font, size, angle, x, y, string)
+    const bbox = image.stringFTBBox(textColor, fontPath, fontSize, 0, 0, 0, text);
+    //    0    1    2,   3    4    5    6    7
+    // [xll, yll, xlr, ylr, xur, yur, xul, yul]
+    return [bbox[2] - bbox[0], bbox[3] - bbox[5]];
+  }
 
   const spaceWidth = calcTextWidthHeight(image, " ")[0];
 
@@ -220,10 +218,10 @@ function captionImage(image, caption) {
     });
 
 
-  const [linesNeeded, avgLineWidth] = calcAvgLineWidth(words, maxTextWidth);
+  const [linesNeeded, avgLineWidth] = calcAvgLineWidth(words, spaceWidth, maxTextWidth);
 
   let totalLineHeight = 0;
-  const lines = createBalancedLines(words, linesNeeded, avgLineWidth, maxTextWidth)
+  const lines = createBalancedLines(words, spaceWidth, linesNeeded, avgLineWidth, maxTextWidth)
     .map((text) => {
       const [width, height] = calcTextWidthHeight(image, text);
       const lineHeight = Math.max(height, minLineHeight)
