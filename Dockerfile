@@ -8,15 +8,17 @@ ARG uid=1000
 RUN mkdir -p /app/src \
  && chown -R ${uid}:${uid} /app
 
-COPY . /app/src
-WORKDIR /app/src
 
 RUN chown -R ${uid} /app/src
 
 ARG env=dev
+COPY package.json package-lock.json ./
 RUN if [ ${env} = production ] ; then \
       npm install ; \
     fi
+
+COPY . /app/src
+WORKDIR /app/src
 
 USER ${uid}:${uid}
 
