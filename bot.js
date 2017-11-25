@@ -308,7 +308,12 @@ function handleTweet(tweet, followIds) {
   if (tweet.is_quote_status) {
     return;
   }
-  let tweetText = [LEFT_QUOTE, tweet.text.trim(), RIGHT_QUOTE].join("");
+  let tweetText = tweet.text;
+  if (tweet.extended_tweet) {
+    tweetText = tweet.extended_tweet.full_text;
+  }
+  tweetText = [LEFT_QUOTE, tweetText.trim(), RIGHT_QUOTE].join("");
+  log("Processing tweet:", tweetText);
   fetchRandomComicImage()
     .then((image) => captionImage(image, tweetText))
     .then((image) => uploadImageToTwitter(image, tweetText))
