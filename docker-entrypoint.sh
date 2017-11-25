@@ -10,6 +10,7 @@ develop)
   ;;
 run)
   exec npm run start
+  ;;
 *)
   exec "$@"
   ;;
