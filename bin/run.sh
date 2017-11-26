@@ -1,7 +1,7 @@
 docker run \
   -d \
   --restart on-failure \
-  -v "$( pwd )/.env:/app/src/.env" \
+  --env-file "$( pwd )/.env" \
   --name yorkerbot \
   yorkerbot \
   run
