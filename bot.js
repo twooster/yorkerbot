@@ -90,6 +90,8 @@ class YorkerBot {
         this._log("Caught error, retrying:", e.message);
       }
     }
+    this._log("Shit, ran out of retries! Bailing out.");
+    throw new Error("Ran out of retries");
   }
 
   async createImageAndMetadata(imageData, altText) {
@@ -141,7 +143,10 @@ class YorkerBot {
     if (tweet.is_quote_status) {
       return;
     }
-    return this.captionAndReplyTo(tweet);
+    this.captionAndReplyTo(tweet)
+      .catch((err) => {
+        this._log("Error happened while handling tweet:", err);
+      });
   }
 
   async captionAndReplyTo(tweet) {

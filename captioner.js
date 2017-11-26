@@ -92,12 +92,12 @@ function createBalancedLines(words, spaceWidth, linesNeeded, avgLineWidth, maxTe
 }
 
 const CAPTION_DEFAULT_OPTS = {
-  captionMarginSides: 40,
-  captionMarginTop:   25,
+  captionMarginSides: 36,
+  captionMarginTop:   24,
   fontSize:           "18pt",
   fontColor:          "#111111",
   lineSpacing:        2,
-  outerPadding:       20,
+  outerPadding:       16,
   resizeComicWidth:   600,
 };
 
@@ -117,11 +117,9 @@ function _caption(image, caption, opts = {}) {
   const scaleFactor = comicWidth / imageWidth;
   const comicHeight = (scaleFactor * imageHeight)|0;
 
-  const finalImageWidth = comicWidth + (2 * outerPadding);
-  let finalImageHeight = comicHeight + (2 * outerPadding);
-
   // we'll resize the canvas later
-  const canvas = createCanvas(finalImageWidth, finalImageHeight);
+  const canvas = createCanvas(comicWidth + (2 * outerPadding),
+                              comicHeight + (2 * outerPadding));
   const ctx = canvas.getContext('2d');
 
   ctx.textBaseline = 'top';
@@ -158,24 +156,32 @@ function _caption(image, caption, opts = {}) {
     captionMarginTop
   );
 
-  finalImageHeight += captionHeight;
-  canvas.height = finalImageHeight;
+  canvas.height = canvas.height + captionHeight;
+
+  // If we're close to square (including the caption), become square so that
+  // the text doesn't drop below the clipping box; if the comic is way too
+  // vertical, it's probably not worth it
+  if (canvas.width < canvas.height && (canvas.height / canvas.width) <= 1.75) {
+    canvas.width = canvas.height;
+  }
 
   // Fill white
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, finalImageWidth, finalImageHeight);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-
+  let y = outerPadding;
+  let x = ((canvas.width - comicWidth) / 2);
   // Draw image
-  ctx.drawImage(image, outerPadding, outerPadding, comicWidth, comicHeight);
+  ctx.drawImage(image, x|0, y|0, comicWidth, comicHeight);
 
   // Draw text
   ctx.fillStyle = fontColor;
-  textY = outerPadding + comicHeight + captionMarginTop;
+
+  y += comicHeight + captionMarginTop;
   for (const line of lines) {
-    const textX = ((finalImageWidth - line.width) / 2);
-    ctx.fillText(line.text, textX, textY);
-    textY += line.height + lineSpacing;
+    x = ((canvas.width - line.width) / 2);
+    ctx.fillText(line.text, x|0, y|0);
+    y += line.height + lineSpacing;
   }
 
   return canvas;
@@ -204,10 +210,6 @@ const registerFonts = (function() {
   let hasRegistered = false;
   return function() {
     if (!hasRegistered) {
-      // we fake having a non-italic version
-      //var font = new Font("Adobe Caslon Pro", CASLON_ITALIC);
-      //font.addFace(CASLON_ITALIC, 'normal', 'italic');
-      //globalFonts.push(font);
       registerFont(CASLON_ITALIC, {family: "Adobe Caslon Pro", style: "italic"});
       hasRegistered = true;
     }
