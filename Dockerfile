@@ -1,13 +1,19 @@
 FROM node:8.9.1
 
+# Cairo deps
 RUN apt-get update \
- && apt-get -y install libgd2-dev \
+ && apt-get install -y \
+       libcairo2-dev \
+       libjpeg-dev \
+       libpango1.0-dev \
+       libgif-dev \
+       build-essential \
+       g++ \
  && rm -rf /var/lib/apt/lists/*
 
 ARG uid=1000
 RUN mkdir -p /app/src \
  && chown -R ${uid}:${uid} /app
-
 
 RUN chown -R ${uid} /app/src
 
