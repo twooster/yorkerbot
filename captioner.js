@@ -1,5 +1,5 @@
 const path = require("path");
-const gd = require("node-gd");
+const { createCanvas, Image, registerFont } = require("canvas");
 
 // Algorithm for creating center-balanced lines from
 // <http://webplatform.adobe.com/balance-text/proposal/index.html>
@@ -92,11 +92,10 @@ function createBalancedLines(words, spaceWidth, linesNeeded, avgLineWidth, maxTe
 }
 
 const CAPTION_DEFAULT_OPTS = {
-  captionMarginSides: 50,
+  captionMarginSides: 40,
   captionMarginTop:   25,
-  fontFile:           path.join(__dirname, 'adobe-caslon-pro-italic.ttf'),
-  fontSize:           14,
-  fontColor:          [8, 8, 8],
+  fontSize:           "18pt",
+  fontColor:          "#111111",
   lineSpacing:        2,
   outerPadding:       20,
   resizeComicWidth:   600,
@@ -105,15 +104,12 @@ const CAPTION_DEFAULT_OPTS = {
 function _caption(image, caption, opts = {}) {
   opts = Object.assign({}, CAPTION_DEFAULT_OPTS, opts);
   const fontSize           = opts.fontSize;
-  const fontFile           = opts.fontFile;
   const fontColor          = opts.fontColor;
   const outerPadding       = opts.outerPadding;
   const captionMarginTop   = opts.captionMarginTop;
   const captionMarginSides = opts.captionMarginSides;
   const comicWidth         = opts.resizeComicWidth;
   const lineSpacing        = opts.lineSpacing;
-
-  const minLineHeight = (fontSize * 1.4)|0;
 
   const imageWidth = image.width;
   const imageHeight = image.height;
@@ -124,25 +120,24 @@ function _caption(image, caption, opts = {}) {
   const finalImageWidth = comicWidth + (2 * outerPadding);
   let finalImageHeight = comicHeight + (2 * outerPadding);
 
+  // we'll resize the canvas later
+  const canvas = createCanvas(finalImageWidth, finalImageHeight);
+  const ctx = canvas.getContext('2d');
+
+  ctx.textBaseline = 'top';
+  ctx.font = `normal italic ${fontSize} "Adobe Caslon Pro"`;
+  ctx.antialias = "subpixel";
+
   const maxTextWidth = imageWidth - (captionMarginSides * 2);
 
-  const tmpTextColor = image.colorAllocate.apply(image, fontColor);
-  const calcTextWidthHeight = (image, text, color = tmpTextColor) => {
-    // gd.Image#stringFTBBox(color, font, size, angle, x, y, string)
-    const bbox = image.stringFTBBox(color, fontFile, fontSize, 0, 0, 0, text);
-    //    0    1    2,   3    4    5    6    7
-    // [xll, yll, xlr, ylr, xur, yur, xul, yul]
-    return [bbox[2] - bbox[0], bbox[3] - bbox[5]];
-  };
-
-  const spaceWidth = calcTextWidthHeight(image, " ")[0];
+  const spaceWidth = ctx.measureText(" ").width;
 
   const words = caption
     .split(/\s+/) // collapse multiple spaces
     .map((word) => {
       return {
         text: word,
-        width: calcTextWidthHeight(image, word)[0]
+        width: ctx.measureText(word).width
       };
     });
 
@@ -151,64 +146,80 @@ function _caption(image, caption, opts = {}) {
   let totalLineHeight = 0;
   const lines = createBalancedLines(words, spaceWidth, linesNeeded, avgLineWidth, maxTextWidth)
     .map((text) => {
-      const [width, height] = calcTextWidthHeight(image, text);
-      const lineHeight = Math.max(height, minLineHeight)
-      totalLineHeight += lineHeight;
-      return { text, width, height: lineHeight };
+      const measure = ctx.measureText(text);
+      const height = measure.emHeightAscent + measure.emHeightDescent;
+      totalLineHeight += height;
+      return { text, width: measure.width, height };
     });
 
-  const captionHeight = (
+  const captionHeight = Math.ceil(
     totalLineHeight +
     (lines.length - 1) * lineSpacing +
     captionMarginTop
-  )|0;
+  );
 
   finalImageHeight += captionHeight;
+  canvas.height = finalImageHeight;
 
-  const finalImage = gd.createTrueColorSync(finalImageWidth, finalImageHeight);
+  // Fill white
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, finalImageWidth, finalImageHeight);
 
-  finalImage.fill(0, 0, 0xffffff); // fill white
-  if (Math.abs(scaleFactor - 1.0) < 0.0001) {
-    // gd.Image#copyResampled(dest, dx, dy, sx, sy, dw, dh, sw, sh)
-    image.copy(finalImage, outerPadding, outerPadding, 0, 0, imageWidth, imageHeight);
-  } else {
-    // gd.Image#copy(dest, dx, dy, sx, sy, width, height)
-    image.copyResampled(finalImage, outerPadding, outerPadding,
-                        0, 0, comicWidth, comicHeight, imageWidth, imageHeight);
-  }
 
-  const finalTextColor = gd.trueColor(8, 8, 8);
+  // Draw image
+  ctx.drawImage(image, outerPadding, outerPadding, comicWidth, comicHeight);
+
+  // Draw text
+  ctx.fillStyle = fontColor;
   textY = outerPadding + comicHeight + captionMarginTop;
   for (const line of lines) {
     const textX = ((finalImageWidth - line.width) / 2);
-    // gd.Image#stringFT(color, font, size, angle, x, y, string, boundingbox)
-    finalImage.stringFT(finalTextColor, fontFile, fontSize, 0, textX|0, textY|0, line.text);
+    ctx.fillText(line.text, textX, textY);
     textY += line.height + lineSpacing;
   }
 
-  return finalImage;
+  return canvas;
 }
 
-function imageCtxFromTypeAndData({ type, data }) {
-  switch (type) {
-    case 'image/jpeg':
-      return gd.createFromJpegPtr(data);
-    case 'image/png':
-      return gd.createFromPngPtr(data);
-    case 'image/gif':
-      return gd.createFromGifPtr(data);
+function imageFromTypeAndData({ type, data }) {
+  const img = new Image();
+  img.src = data;
+  return img;
+}
+
+function imageToPngBuffer(image) {
+  const stream = image.pngStream();
+  const promise = new Promise((resolve, reject) => {
+    const bufs = [];
+    stream.on('data', (data) => bufs.push(data));
+    stream.on('error', (err) => reject(err))
+    stream.on('end', () => resolve(Buffer.concat(bufs)));
+  });
+  return promise;
+}
+
+const registerFonts = (function() {
+  const CASLON_ITALIC = path.join(__dirname, 'adobe-caslon-pro-italic.ttf');
+
+  let hasRegistered = false;
+  return function() {
+    if (!hasRegistered) {
+      // we fake having a non-italic version
+      //var font = new Font("Adobe Caslon Pro", CASLON_ITALIC);
+      //font.addFace(CASLON_ITALIC, 'normal', 'italic');
+      //globalFonts.push(font);
+      registerFont(CASLON_ITALIC, {family: "Adobe Caslon Pro", style: "italic"});
+      hasRegistered = true;
+    }
   }
-  throw new Error("Cannot handle type:", type);
-}
-
-function imageCtxToData(imageCtx) {
-  return imageCtx.pngPtr();
-}
+})();
 
 function caption(imageData, caption, opts = {}) {
-  const origImgCtx = imageCtxFromTypeAndData(imageData);
-  const captionedImage = _caption(origImgCtx, caption, opts);
-  return imageCtxToData(captionedImage);
+  registerFonts();
+
+  const origImg = imageFromTypeAndData(imageData);
+  const captionedImg = _caption(origImg, caption, opts);
+  return imageToPngBuffer(captionedImg);
 }
 
 module.exports = { caption };

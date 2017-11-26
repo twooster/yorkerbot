@@ -1,5 +1,5 @@
-const Twit      = require('twit');
-const YorkerBot = require('./bot');
+const Twit = require('twit');
+const { YorkerBot } = require('./bot');
 
 const lat = 38.8977;
 const long = -77.0365;
@@ -18,4 +18,4 @@ const bot = new YorkerBot({
   location: { lat, long }
 });
 
-bot.run();
+bot.listen();

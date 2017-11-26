@@ -19,7 +19,7 @@ class YorkerBot {
     this.location = location;
   }
 
-  run() {
+  listen() {
     this._log("YorkerBot, reporting for duty");
 
     if (this.followIds.length === 0) {
@@ -75,8 +75,8 @@ class YorkerBot {
     this._log(`Fetching ${comic.src}`);
     const comicImg = await axios.get(comic.src, { responseType: "arraybuffer" });
     return {
-      type: response.headers['content-type'],
-      data: response.data
+      type: comicImg.headers['content-type'],
+      data: comicImg.data
     };
   }
 
@@ -84,7 +84,7 @@ class YorkerBot {
     const MAX_RETRIES = 10;
     for (let count = 0; count < MAX_RETRIES; ++retries) {
       try {
-        return this.tryFetchComic();
+        return await this.tryFetchComic();
       } catch(e) {
         if (!(e instanceof TryAgain)) { throw e; }
         this._log("Caught error, retrying:", e.message);
@@ -113,9 +113,9 @@ class YorkerBot {
 
       const metadataResp = await this.twit.post(
         'media/metadata/create', metadata);
-      if (result.error) {
+      if (metadataResp.error) {
         // Somehow this comes thru the non-error pipeline?
-        throw new Error("Error: " + result.error);
+        throw new Error("Error: " + metadataResp.error);
       }
       this._log("Image metadata creation successful");
     }
@@ -128,34 +128,54 @@ class YorkerBot {
       in_reply_to_status_id:        origTweet.id_str,
       auto_populate_reply_metadata: true,
       media_ids:                    [mediaId],
-      lat:                          WH_LAT,
-      long:                         WH_LONG,
+      lat:                          this.location.lat,
+      long:                         this.location.long,
     }
     return this.twit.post('statuses/update', tweet);
   }
 
-  async onTweet(tweet) {
+  onTweet(tweet) {
     if (this.followIds.indexOf(tweet.user.id_str) === -1) {
       return;
     }
     if (tweet.is_quote_status) {
       return;
     }
+    return this.captionAndReplyTo(tweet);
+  }
+
+  async captionAndReplyTo(tweet) {
     let tweetText = tweet.text;
     if (tweet.extended_tweet) {
       tweetText = tweet.extended_tweet.full_text;
     }
     this._log("Processing tweet:", tweetText);
 
-    const quotedText = [LEFT_QUOTE, tweetText.trim(), RIGHT_QUOTE].join("");
+    // Remove trailing urls
+    let splitTweet = tweetText.trim().split(/\s+/);
+    while (splitTweet.length !== 0) {
+      const word = splitTweet[splitTweet.length-1];
+      if (word.match(/^https?:\/\//i)) {
+        this._log("Removed trailing URL:", word);
+        splitTweet.pop();
+      } else {
+        break;
+      }
+    }
+
+    const quotedText = [LEFT_QUOTE, splitTweet.join(" "), RIGHT_QUOTE].join("");
 
     const imageData          = await this.fetchRandomComicImage();
-    const imageCtx           = createImage(imageData);
-    const captionedImageData = captionImage(image, quotedText);
+    const captionedImageData = await caption(imageData, quotedText);
     const mediaId            = await this.createImageAndMetadata(captionedImageData, quotedText);
     const tweetResult        = await this.tweetMediaInResponseTo(mediaId, tweet);
 
     this._log("Successful tweet! ID:", tweetResult.data.id_str);
+  }
+
+  async captionAndReplyToTweetById(tweetId) {
+    const tweet = (await this.twit.get('statuses/show/' + tweetId)).data;
+    return this.captionAndReplyTo(tweet);
   }
 }
 
