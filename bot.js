@@ -126,7 +126,7 @@ class YorkerBot {
 
   tweetMediaInResponseTo(mediaId, origTweet) {
     const tweet = {
-      status:                       `@${origTweet.user.screen_name}`,
+      status:                       `.@${origTweet.user.screen_name}`,
       in_reply_to_status_id:        origTweet.id_str,
       auto_populate_reply_metadata: true,
       media_ids:                    [mediaId],
