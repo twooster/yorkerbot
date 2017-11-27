@@ -81,8 +81,8 @@ class YorkerBot {
   }
 
   async fetchRandomComicImage() {
-    const MAX_RETRIES = 10;
-    for (let count = 0; count < MAX_RETRIES; ++retries) {
+    const MAX_RETRIES = 15;
+    for (let count = 0; count < MAX_RETRIES; ++count) {
       try {
         return await this.tryFetchComic();
       } catch(e) {
