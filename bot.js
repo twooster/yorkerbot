@@ -1,8 +1,11 @@
 const path  = require("path");
 const axios = require("axios");
 const btoa  = require("btoa");
+const HtmlEntities = require("html-entities").AllHtmlEntities;
 
 const { caption } = require("./captioner");
+
+const htmlEntities = new HtmlEntities();
 
 const NEW_YORKER_ENDPOINT = "https://www.newyorker.com/cartoons/random/randomAPI1";
 const LEFT_QUOTE = "\u201C";
@@ -154,6 +157,7 @@ class YorkerBot {
     if (tweet.extended_tweet) {
       tweetText = tweet.extended_tweet.full_text;
     }
+    tweetText = htmlEntities.decode(tweetText);
     this._log("Processing tweet:", tweetText);
 
     // Remove trailing urls
