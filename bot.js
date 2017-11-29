@@ -143,7 +143,16 @@ class YorkerBot {
     if (this.followIds.indexOf(tweet.user.id_str) === -1) {
       return;
     }
-    if (tweet.is_quote_status) {
+    if (tweet.is_quote_status || tweet.quoted_status) {
+      this._log("Skipping quote tweet:", tweet.text);
+      return;
+    }
+    if (tweet.retweeted_status) {
+      this._log("Skipping retweet:", tweet.text);
+      return;
+    }
+    if (tweet.truncated) {
+      this._log("Skipping truncated/long tweet:", tweet.text);
       return;
     }
     this.captionAndReplyTo(tweet)
