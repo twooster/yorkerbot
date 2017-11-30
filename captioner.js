@@ -126,7 +126,7 @@ function _caption(image, caption, opts = {}) {
   ctx.font = `normal italic ${fontSize} "Adobe Caslon Pro"`;
   ctx.antialias = "subpixel";
 
-  const maxTextWidth = imageWidth - (captionMarginSides * 2);
+  const maxTextWidth = comicWidth - (captionMarginSides * 2);
 
   const spaceWidth = ctx.measureText(" ").width;
 
