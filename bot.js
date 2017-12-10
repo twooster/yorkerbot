@@ -30,7 +30,7 @@ class YorkerBot {
       return;
     }
 
-    const stream = this.twit.stream('statuses/filter', { follow: this.followIds })
+    const stream = this.twit.stream('site', { follow: this.followIds })
 
     stream.on("connect", (request) => {
       this._log("Attempting to connect");
