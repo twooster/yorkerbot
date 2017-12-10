@@ -52,6 +52,14 @@ class YorkerBot {
       this._log("User event", eventMsg);
     });
 
+    stream.on("warning", (warning) => {
+      this._log("Warning:", warning);
+    });
+
+    stream.on("error", (err) => {
+      this._log("Error", err.statusCode, err.message);
+    });
+
     stream.on("tweet", this.onTweet.bind(this));
   }
 
